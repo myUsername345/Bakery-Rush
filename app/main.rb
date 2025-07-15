@@ -26,6 +26,9 @@ def tick args
   args.state.oven_failure_overlay ||= false
   args.state.tablet_success_overlay ||= false
 
+  args.state.recipes = [[:flour, :milk, :chocolate]]
+  args.state.baked = {donut:3, bread:5, cupcake:4}
+
   # Oven failure overlay
   if args.state.oven_failure_overlay
     args.outputs.sprites << {
@@ -50,7 +53,6 @@ def tick args
       args.state.starting_screen = true
       return
     end
-
     return
   end
 
@@ -111,6 +113,37 @@ def tick args
     x: oven_x, y: oven_y,
     w: oven_w, h: oven_h, path: "sprites/Oven.png"
   }
+
+  # Draw baked items
+  for i in 0..((args.state.baked)[:cupcake] -1) do
+    args.outputs.sprites << {
+      x: oven_x + oven_w,
+      y: oven_y + 25*i,
+      w: 50,
+      h: 50,
+      path: "sprites/Cupcake.png"
+    }
+  end
+
+  for i in 0..((args.state.baked)[:donut] -1) do
+    args.outputs.sprites << {
+      x: oven_x + oven_w + 50,
+      y: oven_y + 25*i,
+      w: 50,
+      h: 50,
+      path: "sprites/Donut.png"
+    }
+  end
+
+  for i in 0..((args.state.baked)[:bread] -1) do
+    args.outputs.sprites << {
+      x: oven_x + oven_w + 100,
+      y: oven_y + 25*i,
+      w: 50,
+      h: 50,
+      path: "sprites/Bread.png"
+    }
+  end
 
   # Tablet
   tablet_w, tablet_h = 200, 200
@@ -173,17 +206,63 @@ def tick args
     flip_horizontally: !args.state.employee_facing_right
   }
 
+  # Logic for Oven Popup
+  args.state.ovenpopupenabled ||= false
+  args.outputs[:oven_popup].w = 250
+  args.outputs[:oven_popup].h = 150
+  args.outputs[:oven_popup].background_color = [0, 0, 0, 100]
+
+  args.outputs[:oven_popup].sprites << {
+    x: 25,
+    y: 75,
+    w: 50,
+    h: 50,
+    path: "sprites/Cupcake.png"
+  }
+  args.outputs[:oven_popup].sprites << {
+    x: 100,
+    y: 75,
+    w: 50,
+    h: 50,
+    path: "sprites/Donut.png"
+  }
+  args.outputs[:oven_popup].sprites << {
+    x: 175,
+    y: 75,
+    w: 50,
+    h: 50,
+    path: "sprites/Bread.png"
+  }
+
+  args.state.cupcakebutton = {x: 25, y: 25, w:50, h: 25}
+  args.state.donutbutton = {x: 100, y: 25, w:50, h: 25}
+  args.state.breadbutton = {x: 175, y: 25, w:50, h: 25}
+  args.outputs[:oven_popup].sprites << args.state.cupcakebutton
+  args.outputs[:oven_popup].sprites << args.state.donutbutton
+  args.outputs[:oven_popup].sprites << args.state.breadbutton
+
+  oven_popup_offset_x = 128
+  oven_popup_offset_y = 256  
+
   # Click logic
   if args.inputs.mouse.click
     mx = args.inputs.mouse.x
     my = args.inputs.mouse.y
 
+    if args.state.ovenpopupenabled && mx.between?(args.state.cupcakebutton.x + oven_popup_offset_x , args.state.cupcakebutton.x + args.state.cupcakebutton.w + oven_popup_offset_x)
+      # Logic for baking cupcakes
+    elsif args.state.ovenpopupenabled && mx.between?(args.state.donutbutton.x + oven_popup_offset_x, args.state.donutbutton.x + args.state.donutbutton.w + oven_popup_offset_x)
+      # Logic for baking cupcakes
+      # 
+    elsif args.state.ovenpopupenabled && mx.between?(args.state.breadbutton.x + oven_popup_offset_x, args.state.breadbutton.x + args.state.breadbutton.w + oven_popup_offset_x)
+
+    elsif
     # Oven click triggers failure overlay
-    if mx.between?(oven_x, oven_x + oven_w) &&
+     mx.between?(oven_x, oven_x + oven_w) &&
        my.between?(oven_y, oven_y + oven_h)
-      args.state.oven_failure_overlay = true
-      return
+      args.state.ovenpopupenabled = !args.state.ovenpopupenabled
     end
+
 
     # Tablet click triggers success overlay
     if mx.between?(tablet_x, tablet_x + tablet_w) &&
@@ -220,5 +299,16 @@ def tick args
       size: 28, alignment_enum: 2,
       r: 255, g: 255, b: 255
     }
+  end
+
+  # Show Oven popup
+  if args.state.ovenpopupenabled 
+    args.outputs.sprites << {
+      x: oven_popup_offset_x,
+      y: oven_popup_offset_y,
+      w: args.outputs[:oven_popup].w,
+      h: args.outputs[:oven_popup].h,
+      path: :oven_popup,
+    } 
   end
 end
