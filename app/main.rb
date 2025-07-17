@@ -537,8 +537,8 @@ end
       if args.state.shop_money >= args.state.supply_cost
         args.state.shop_money -= args.state.supply_cost
         case rand(4)
-        when 0 then args.state.flour_count += 1
-        when 1 then args.state.milk_count += 1
+        when 0 then args.state.flour_count += 2
+        when 1 then args.state.milk_count += 2
         when 2 then args.state.cherry_count += 1
         when 3 then args.state.chocolate_count += 1
         end
@@ -792,7 +792,7 @@ def update_shop(args)
   args.state.shop_messages.reject! { |msg| msg[:timer] && msg[:timer] <= 0 }
 
   # Update game time
-  args.state.game_time += 0.05 # Advance time by 3 seconds each tick
+  args.state.game_time += 0.08
 
   # Update floating money
   args.state.floating_money.each do |money|
