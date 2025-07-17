@@ -553,8 +553,17 @@ end
        my.between?(employee_y, employee_y + employee_h)
       args.state.employee_facing_right = !args.state.employee_facing_right
 			
-			# Check if delivery guy can deliver
-			check_delivery(args, args.state.orders[-1][:item])
+			# Check if delivery guy can deliver any available baked items
+			if args.state.baked[:bread] > 0
+				check_delivery(args, :bread)
+			elsif args.state.baked[:donut] > 0
+				check_delivery(args, :donut)
+			elsif args.state.baked[:cupcake] > 0
+				check_delivery(args, :cupcake)
+			else
+				args.state.delivery_guy_message = "I don't have anything to deliver!"
+				args.state.delivery_guy_message_timer = 120
+			end
 				
     end
   end
@@ -739,13 +748,10 @@ def show_items(args, item)
 end
 
 def check_delivery(args, baked_type)
-  # Flip delivery guy
-  args.state.employee_facing_right = !args.state.employee_facing_right
-  
   # Check if any order matches
   matching_order = args.state.orders.find { |order| order[:item] == baked_type }
   
-  if matching_order
+  if matching_order && args.state.baked[baked_type] > 0
     # Complete the order
     args.state.orders.delete(matching_order)
     args.state.completed_orders << matching_order
@@ -762,15 +768,20 @@ def check_delivery(args, baked_type)
     # After a delay, show completion message
     add_shop_message(args, "Receipt ##{matching_order[:id]} Done! +$#{matching_order[:revenue]}")
     add_floating_money(args, matching_order[:revenue], 640, 400)
-  else
-    # No matching order
+  elsif args.state.baked[baked_type] > 0
+    # No matching order but we have the item
     args.state.delivery_guy_message = "Nobody ordered it so I'm going to eat it"
     args.state.delivery_guy_message_timer = 120
     
     # Remove the baked item
     args.state.baked_items.delete_if { |item| item[:type] == baked_type }
+    args.state.baked[baked_type] -= 1
     
     add_shop_message(args, "Item was eaten by delivery guy!")
+  else
+    # No baked items to deliver
+    args.state.delivery_guy_message = "I don't have anything to deliver!"
+    args.state.delivery_guy_message_timer = 120
   end
 end
 
