@@ -65,8 +65,8 @@ def tick(args)
   update_shop(args)
 
   # Generate orders periodically (every 30 seconds of game time)
-  if args.state.game_time < 17 * 60 && # Stop generating orders at 5pm
-     args.state.game_time - args.state.last_order_generation > 30 &&
+  if args.state.game_time < 19 * 60 && # Stop generating orders at 7pm
+     args.state.game_time - args.state.last_order_generation > 25 &&
      args.state.orders.length < 3
     generate_new_order(args)
     args.state.last_order_generation = args.state.game_time
