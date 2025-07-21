@@ -23,7 +23,7 @@ def tick(args)
 
   # Init state
   args.state.starting_screen = true if args.state.starting_screen.nil?
-  args.state.show_how_to_play ||= false
+  args.state.shop.onFire ||= false
   args.state.flour_count ||= 0
   args.state.milk_count ||= 0
   args.state.cherry_count ||= 0
@@ -36,6 +36,8 @@ def tick(args)
 		{type: :donut, flour: 1, chocolate: 1, x: 140},
 		{type: :cupcake, flour: 1, milk: 1, cherry: 1, x: 250}
 	]
+
+  checkOrderTimers(args)
 
   # New state flags for overlays
   args.state.oven_failure_overlay ||= false
@@ -67,7 +69,8 @@ def tick(args)
   # Generate orders periodically (every 30 seconds of game time)
   if args.state.game_time < 19 * 60 && # Stop generating orders at 7pm
      args.state.game_time - args.state.last_order_generation > 25 &&
-     args.state.orders.length < 3
+     args.state.orders.length < 3 &&
+     !args.state.shop.onFire
     generate_new_order(args)
     args.state.last_order_generation = args.state.game_time
   end
@@ -142,164 +145,49 @@ def tick(args)
     return
   end
 
-  if args.state.show_how_to_play
-  args.outputs.sprites << {
-    x: 0, y: 0, w: screen_w, h: screen_h,
-    path: :pixel, r: 0, g: 0, b: 0, a: 220
-  }
-
-  args.outputs.labels << [
-    { x: screen_w / 2, y: screen_h - 100, text: "How to Play", size: 48, alignment_enum: 1, r: 255, g: 255, b: 255 },
-    { x: screen_w / 2, y: screen_h - 180, text: "- Click the Supply Box to get ingredients.", size: 28, alignment_enum: 1, r: 255, g: 255, b: 255 },
-    { x: screen_w / 2, y: screen_h - 220, text: "- Click the Oven to make new recipes", size: 28, alignment_enum: 1, r: 255, g: 255, b: 255 },
-    { x: screen_w / 2, y: screen_h - 260, text: "- Click the Tablet to submit", size: 28, alignment_enum: 1, r: 255, g: 255, b: 255 }
-  ]
-
-  # Back button
-  back_btn_x = screen_w / 2 - 100
-  back_btn_y = 100
-  back_btn_w = 200
-  back_btn_h = 50
-
-  args.outputs.solids << {
-    x: back_btn_x, y: back_btn_y, w: back_btn_w, h: back_btn_h,
-    r: 200, g: 80, b: 80, a: 200
-  }
-  args.outputs.labels << {
-    x: screen_w / 2, y: back_btn_y + 15,
-    text: "Back", size: 28, alignment_enum: 1,
-    r: 255, g: 255, b: 255
-  }
-
-  if args.inputs.mouse.click
-    mx = args.inputs.mouse.x
-    my = args.inputs.mouse.y
-
-    if mx.between?(back_btn_x, back_btn_x + back_btn_w) &&
-       my.between?(back_btn_y, back_btn_y + back_btn_h)
-      args.state.show_how_to_play = false
-      args.state.starting_screen = true
-    end
-  end
-
-  return
-end
-
   if args.state.starting_screen
-  args.outputs.sprites << {
-    x: 0, y: 0, w: screen_w, h: screen_h,
-    path: :pixel, r: 50, g: 50, b: 50, a: 180
-  }
-
-  # Button dimensions
-  btn_w = 200
-  btn_h = 60
-
-  play_btn_x = screen_w / 2 - btn_w / 2
-  play_btn_y = screen_h / 2 + 20
-
-  how_btn_x = screen_w / 2 - btn_w / 2
-  how_btn_y = screen_h / 2 - 60
-
-  # Draw PLAY button (with border)
-  args.outputs.borders << {
-    x: play_btn_x - 2, y: play_btn_y - 2, w: btn_w + 4, h: btn_h + 4,
-    r: 255, g: 255, b: 255
-  }
-  args.outputs.solids << {
-    x: play_btn_x, y: play_btn_y, w: btn_w, h: btn_h,
-    r: 100, g: 200, b: 100, a: 220
-  }
-  args.outputs.labels << {
-    x: screen_w / 2, y: play_btn_y + 40,
-    text: "Play", size: 32, alignment_enum: 1,
-    r: 255, g: 255, b: 255
-  }
-
-  # Draw HOW TO PLAY button (with border)
-  args.outputs.borders << {
-    x: how_btn_x - 2, y: how_btn_y - 2, w: btn_w + 4, h: btn_h + 4,
-    r: 255, g: 255, b: 255
-  }
-  args.outputs.solids << {
-    x: how_btn_x, y: how_btn_y, w: btn_w, h: btn_h,
-    r: 80, g: 80, b: 200, a: 220
-  }
-  args.outputs.labels << {
-    x: screen_w / 2, y: how_btn_y + 40,
-    text: "How to Play", size: 28, alignment_enum: 1,
-    r: 255, g: 255, b: 255
-  }
-
-  # Handle mouse clicks
-  if args.inputs.mouse.click
-    mx = args.inputs.mouse.x
-    my = args.inputs.mouse.y
-
-    if mx.between?(play_btn_x, play_btn_x + btn_w) &&
-       my.between?(play_btn_y, play_btn_y + btn_h)
-      args.state.starting_screen = false
-      return
-    end
-
-    if mx.between?(how_btn_x, how_btn_x + btn_w) &&
-       my.between?(how_btn_y, how_btn_y + btn_h)
-      args.state.show_how_to_play = true
-      return
-    end
+    args.outputs.sprites << {
+      x: 0, y: 0, w: screen_w, h: screen_h,
+      path: :pixel, r: 50, g: 50, b: 50, a: 180
+    }
+    args.outputs.labels << {
+      x: screen_w / 2, y: screen_h / 2,
+      text: "Click here to play", size: 48, alignment_enum: 1,
+      r: 255, g: 255, b: 255
+    }
+    args.state.starting_screen = false if args.inputs.mouse.click
+    return
   end
-
-  return
-end
-
-if args.state.show_how_to_play
-  args.outputs.sprites << {
-    x: 0, y: 0, w: screen_w, h: screen_h,
-    path: :pixel, r: 0, g: 0, b: 0, a: 220
-  }
-
-  args.outputs.labels << [
-    { x: screen_w / 2, y: screen_h - 100, text: "How to Play", size: 48, alignment_enum: 1, r: 255, g: 255, b: 255 },
-    { x: screen_w / 2, y: screen_h - 180, text: "- Click the Supply Box to get ingredients.", size: 28, alignment_enum: 1, r: 255, g: 255, b: 255 },
-    { x: screen_w / 2, y: screen_h - 220, text: "- Click the Oven to combine ingredients", size: 28, alignment_enum: 1, r: 255, g: 255, b: 255 },
-    { x: screen_w / 2, y: screen_h - 260, text: "- Click the Tablet for new orders", size: 28, alignment_enum: 1, r: 255, g: 255, b: 255 },
-  ]
-
-  # Back button
-  back_btn_x = screen_w / 2 - 100
-  back_btn_y = 100
-  back_btn_w = 200
-  back_btn_h = 50
-
-  args.outputs.solids << {
-    x: back_btn_x, y: back_btn_y, w: back_btn_w, h: back_btn_h,
-    r: 200, g: 80, b: 80, a: 200
-  }
-  args.outputs.labels << {
-    x: screen_w / 2, y: back_btn_y + 15,
-    text: "Back", size: 28, alignment_enum: 1,
-    r: 255, g: 255, b: 255
-  }
 
   if args.inputs.mouse.click
     mx = args.inputs.mouse.x
     my = args.inputs.mouse.y
-
-    if mx.between?(back_btn_x, back_btn_x + back_btn_w) &&
-       my.between?(back_btn_y, back_btn_y + back_btn_h)
-      args.state.show_how_to_play = false
-      args.state.starting_screen = true
-    end
   end
 
-  return
+  args.outputs.sprites << {
+    x: 940, y: 325, w: 140, h: 140,
+    path: "sprites/FireExtinguisher.png" 
+  }
+
+  if args.state.shop.onFire
+  args.outputs.sprites << {
+    x: 0, y: 0, w: 1280, h: 720,
+    path: "sprites/FireTest.png"
+  }
 end
+
+  if args.state.shop.onFire && mx && my
+    if mx.between?(940, 1080) && my.between?(325, 465)
+      args.state.shop.onFire = false
+      add_shop_message(args, "Fire extinguished! Store is safe.")
+    end
+  end
 
   # Oven
   oven_x = screen_w / 2 - 600
   oven_y = screen_h / 2 - 230
-  oven_w = 200
-  oven_h = 200
+  oven_w = 265
+  oven_h = 193
   args.outputs.sprites << {
     x: oven_x, y: oven_y,
     w: oven_w, h: oven_h, path: "sprites/Oven.png"
@@ -570,8 +458,9 @@ end
 
   # Render shop UI
   render_shop_ui(args)
-
 end
+
+
 
 def generate_new_order(args)
   items = [:bread, :donut, :cupcake]
@@ -583,7 +472,8 @@ def generate_new_order(args)
   order = {
     id: args.state.next_receipt_number,
     item: item,
-    revenue: revenue
+    revenue: revenue,
+    time_placed: args.state.game_time
   }
   
   args.state.orders << order
@@ -833,6 +723,21 @@ def render_shop_ui(args)
   render_progress_bar(args)
   render_messages(args)
   render_floating_money(args)
+end
+
+def checkOrderTimers(args)
+  args.state.orders.each do |order|
+    waitTime = args.state.game_time - order[:time_placed]
+    if waitTime >= 60 
+      if !args.state.shop.onFire
+        args.state.shop.onFire = true
+        add_shop_message(args, "A customer waited too long...")
+        add_shop_message(args, "your store is on fire!")
+      end
+      args.state.orders.delete(order)
+      break
+    end
+  end
 end
 
 #rendering for money, time, and messages
