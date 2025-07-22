@@ -63,9 +63,6 @@ def tick(args)
   # Supply box costs
   args.state.supply_cost ||= 3
 
-  # Update shop
-  update_shop(args)
-
   # Generate orders periodically (every 30 seconds of game time)
   if args.state.game_time < 19 * 60 && # Stop generating orders at 7pm
      args.state.game_time - args.state.last_order_generation > 25 &&
@@ -159,9 +156,42 @@ def tick(args)
     return
   end
 
+  # Update shop
+  update_shop(args)
+
   if args.inputs.mouse.click
     mx = args.inputs.mouse.x
     my = args.inputs.mouse.y
+  end
+
+  if args.state.shop.onFire && !args.state.fireStarted
+    args.state.fireStarted = true
+    args.state.fireTimeElapsed = 0
+    args.state.fireFrameCounter = 0
+    args.state.fireFrame = 0
+  end
+
+  # Reset fire state when fire is extinguished
+  if !args.state.shop.onFire && args.state.fireStarted
+  args.state.fireStarted = false
+  args.state.fireTimeElapsed = 0  # Reset the fire progress
+  args.state.fireFrameCounter = 0
+  args.state.fireFrame = 0
+end
+
+  if args.state.fireStarted
+    # Track how long the fire has been burning (in frames)
+    args.state.fireTimeElapsed ||= 0
+    args.state.fireTimeElapsed += 1
+
+    # Update fire animation frame every ~0.3s
+    args.state.fireFrameCounter ||= 0
+    args.state.fireFrameCounter += 1
+    if args.state.fireFrameCounter > 18
+      args.state.fireFrameCounter = 0
+      args.state.fireFrame ||= 0
+      args.state.fireFrame = (args.state.fireFrame + 1) % 2
+    end
   end
 
   args.outputs.sprites << {
@@ -170,11 +200,8 @@ def tick(args)
   }
 
   if args.state.shop.onFire
-  args.outputs.sprites << {
-    x: 0, y: 0, w: 1280, h: 720,
-    path: "sprites/FireTest.png"
-  }
-end
+    render_fire(args)
+  end
 
   if args.state.shop.onFire && mx && my
     if mx.between?(940, 1080) && my.between?(325, 465)
@@ -731,8 +758,11 @@ def checkOrderTimers(args)
     if waitTime >= 60 
       if !args.state.shop.onFire
         args.state.shop.onFire = true
+        args.state.fireStarted = true
         add_shop_message(args, "A customer waited too long...")
         add_shop_message(args, "your store is on fire!")
+      else
+        add_shop_message(args, "Another order was cancelled!")
       end
       args.state.orders.delete(order)
       break
@@ -772,6 +802,37 @@ def render_blocks(args)
     r: 140, g: 58, b: 44, a: 250,
 		path: 'sprites/panel_brown.png',
     primitive_marker: :sprite
+  }
+end
+
+def render_fire(args)
+  return unless args.state.shop.onFire
+
+  fireTimeInGameTicks = (args.state.fireTimeElapsed || 0) * 0.08  # Convert frames to game time
+  firePhase = if fireTimeInGameTicks < 20
+                1
+              elsif fireTimeInGameTicks < 40
+                2
+              else
+                3
+              end
+
+  fireFrame = args.state.fireFrame || 0
+
+  sprite_path = case firePhase
+                when 1
+                  fireFrame == 0 ? 'sprites/Fire1.png' : 'sprites/Fire2.png'
+                when 2
+                  fireFrame == 0 ? 'sprites/Fire1.1.png' : 'sprites/Fire1.2.png'
+                when 3
+                  fireFrame == 0 ? 'sprites/Fire2.1.png' : 'sprites/Fire2.2.png'
+                end
+  
+  args.outputs.sprites << {
+    x: 0,
+    y: 0,
+    w: 1280, h: 720,
+    path: sprite_path
   }
 end
 
@@ -855,5 +916,7 @@ def render_messages(args)
         r: 255, g: 255, b: 255
       }
     end
+  end
+end
   end
 end
