@@ -42,6 +42,7 @@ def tick(args)
   # New state flags for overlays
   args.state.oven_failure_overlay ||= false
   args.state.tablet_success_overlay ||= false
+  args.state.fire_game_over_overlay ||= false
   args.state.ovenpopupenabled ||= false
 
   # Shop state
@@ -140,6 +141,39 @@ def tick(args)
       return
     end
 
+    return
+  end
+
+  # Fire game over overlay (Fire burned too long)
+  if args.state.fire_game_over_overlay
+    args.outputs.sprites << {
+      x: 0, y: 0, w: screen_w, h: screen_h,
+      path: :pixel, r: 50, g: 50, b: 50, a: 180
+    }
+    args.outputs.labels << {
+      x: screen_w / 2, y: screen_h / 2 + 40,
+      text: "The fire burned out of control!",
+      size: 36, alignment_enum: 1,
+      r: 255, g: 100, b: 100
+    }
+    args.outputs.labels << {
+      x: screen_w / 2, y: screen_h / 2 - 20,
+      text: "Your bakery is destroyed!",
+      size: 28, alignment_enum: 1,
+      r: 255, g: 255, b: 255
+    }
+    args.outputs.labels << {
+      x: screen_w / 2, y: screen_h / 2 - 60,
+      text: "Click here to play again",
+      size: 24, alignment_enum: 1,
+      r: 255, g: 255, b: 255
+    }
+
+    if args.inputs.mouse.click
+      args.state.clear!
+      args.state.starting_screen = true
+      return
+    end
     return
   end
 
@@ -319,6 +353,25 @@ ingredients.each_with_index do |item, i|
   }
 end
 
+  # Employee sprite
+  employee_w = 300
+  employee_h = 500
+  employee_x = screen_w / 2 - employee_w / 2
+  employee_y = screen_h / 2 - 167
+  args.outputs.sprites << {
+    x: employee_x, y: employee_y, w: employee_w, h: employee_h,
+    path: "sprites/Employee.png",
+    flip_horizontally: !args.state.employee_facing_right
+  }
+  if args.state.shop.onFire && args.state.fireStarted
+    if args.state.firePhase == 3
+      args.outputs.sprites << {
+        x: 0, y: 0, 
+        w: 1280, h: 720,
+        path: "sprites/SmokyScreen.png",  # Replace with your actual smoke PNG name
+      }
+    end
+  end
 
   # SupplyBox 
   supply_box_w, supply_box_h = 150, 200
@@ -333,17 +386,6 @@ end
     x: supply_box_x + supply_box_w / 2, y: supply_box_y + supply_box_h + 10,
     text: "Supply: $#{args.state.supply_cost}", size: 24, alignment_enum: 1,
     r: 255, g: 255, b: 0
-  }
-
-  # Employee sprite
-  employee_w = 300
-  employee_h = 500
-  employee_x = screen_w / 2 - employee_w / 2
-  employee_y = screen_h / 2 - 167
-  args.outputs.sprites << {
-    x: employee_x, y: employee_y, w: employee_w, h: employee_h,
-    path: "sprites/Employee.png",
-    flip_horizontally: !args.state.employee_facing_right
   }
 	employee_text_w = 200
 	employee_text_h = 80
@@ -823,6 +865,10 @@ def render_fire(args)
                 3
               end
 
+  args.state.firePhase = firePhase
+  if fireTimeInGameTicks >= 60
+    args.state.fire_game_over_overlay = true
+  end
   fireFrame = args.state.fireFrame || 0
 
   sprite_path = case firePhase
