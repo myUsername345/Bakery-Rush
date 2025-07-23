@@ -503,6 +503,13 @@ end
       args.state.ovenpopupenabled = !args.state.ovenpopupenabled
     end
 
+    # Mute Button
+    if mx.between?(1130, 1130 + 50) &&
+       my.between?(670, 720)
+      args.audio[:music].paused = !args.audio[:music].paused
+    end
+
+
     # Tablet click opens orders GUI
     if mx.between?(tablet_x, tablet_x + tablet_w) &&
        my.between?(tablet_y, tablet_y + tablet_h)
@@ -617,6 +624,7 @@ def render_tablet_gui(args, tablet_x, tablet_y, tablet_w, tablet_h)
         text: "Revenue: $#{order[:revenue]}", size: 16,
         r: 0, g: 255, b: 0
       }
+
       
       # Item sprite
       args.outputs.primitives << {
@@ -877,6 +885,16 @@ def render_blocks(args)
 		path: 'sprites/panel_brown.png',
     primitive_marker: :sprite
   }
+
+
+  args.outputs.primitives << {
+    x: 1065, y: 670,
+    w: 50, h: 50,
+    r: 140, g: 58, b: 44, a: 250,
+		path: 'sprites/panel_brown.png',
+    primitive_marker: :sprite
+  }
+
 end
 
 def render_fire(args)
@@ -935,6 +953,11 @@ def render_progress_bar(args)
     size_px: 24,
     font: "fonts/manaspc.ttf",
     r: 255, g: 255, b: 200
+  }
+  args.outputs.labels << {
+    x: 1085, y: 705,
+    text: "M🔇", size: 24,
+    r: 255, g: 255, b: 255
   }
   money_box_x = 1140
   money_box_y = time_box_y
