@@ -387,7 +387,7 @@ end
       args.outputs.sprites << {
         x: 0, y: 0, 
         w: 1280, h: 720,
-        path: "sprites/SmokyScreen.png",  # Replace with your actual smoke PNG name
+        path: "sprites/SmokyScreen.png",
       }
     end
   end
