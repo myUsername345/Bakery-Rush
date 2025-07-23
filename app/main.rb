@@ -63,6 +63,7 @@ def tick(args)
   # Supply box costs
   args.state.supply_cost ||= 3
 
+
   # Generate orders periodically (every 30 seconds of game time)
   if args.state.game_time < 19 * 60 && # Stop generating orders at 7pm
      args.state.game_time - args.state.last_order_generation > 25 &&
@@ -200,7 +201,7 @@ end
   }
 
   if args.state.shop.onFire
-    render_fire(args)
+     render_fire(args)
   end
 
   if args.state.shop.onFire && mx && my
@@ -220,7 +221,7 @@ end
     w: oven_w, h: oven_h, path: "sprites/Oven.png"
   }
 
-  # Draw baked items
+    # Draw baked items
   for i in 0..((args.state.baked)[:cupcake] -1) do
     args.outputs.sprites << {
       x: oven_x + oven_w,
@@ -275,32 +276,49 @@ end
     primitive_marker: :sprite
   }
 
-  # Ingredient display
-  ingredients = [
-    { icon: "Flour.png", count: args.state.flour_count, w: 50, h: 50 },
-    { icon: "Milk.png", count: args.state.milk_count, w: 25, h: 60 },
-    { icon: "Cherry.png", count: args.state.cherry_count, w: 32, h: 32 },
-    { icon: "Chocolate.png", count: args.state.chocolate_count, w: 32, h: 32 }
-  ]
+# Ingredient display with rotation wiggle at 30 BPM
+frames_per_beat = (60.0 / 30.0) * 60  # 30 BPM = 2 seconds per beat = 120 frames per beat
+rotation_amplitude = 8                # Max rotation angle in degrees
 
-  ingredients.each_with_index do |item, i|
-    icon_x = hotbar_x + 30 + i * 120
-    icon_y = hotbar_y + 10
+ingredients = [
+  { icon: "Flour.png",     count: args.state.flour_count,     w: 50, h: 50 },
+  { icon: "Milk.png",      count: args.state.milk_count,      w: 25, h: 60 },
+  { icon: "Cherry.png",    count: args.state.cherry_count,    w: 32, h: 32 },
+  { icon: "Chocolate.png", count: args.state.chocolate_count, w: 32, h: 32 }
+]
 
-    args.outputs.primitives << {
-      x: icon_x, y: icon_y,
-      w: item[:w], h: item[:h],
-      z: 1,
-      path: "sprites/#{item[:icon]}",
-			primitive_marker: :sprite
-    }
+ingredients.each_with_index do |item, i|
+  icon_x = hotbar_x + 30 + i * 120
+  icon_y = hotbar_y + 11
 
-    args.outputs.labels << {
-      x: icon_x + item[:w] + 8, y: icon_y + 30,
-      text: "x #{item[:count]}", size: 24,
-      r: 255, g: 255, b: 255
-    }
-  end
+  # move x, y to center of sprite
+  center_x = icon_x + item[:w] / 2
+  center_y = icon_y + item[:h] / 2
+
+  # calculate wiggle rotation angle
+  rotation_angle = Math.sin((args.tick_count + i * 20) / frames_per_beat * Math::PI * 2) * rotation_amplitude
+
+  args.outputs.primitives << {
+    x: center_x, 
+    y: center_y, 
+    w: item[:w],
+    h: item[:h],
+    primitive_marker: :sprite,
+    path: "sprites/#{item[:icon]}",
+    angle: rotation_angle,
+    anchor_x: 0.5,
+    anchor_y: 0.5,
+  }
+
+  args.outputs.labels << {
+    x: icon_x + item[:w] + 8,
+    y: icon_y + 30,
+    text: "x #{item[:count]}",
+    size: 24,
+    r: 255, g: 255, b: 255
+  }
+end
+
 
   # SupplyBox 
   supply_box_w, supply_box_h = 150, 200
@@ -379,28 +397,6 @@ end
   args.outputs[:oven_popup].w = 250
   args.outputs[:oven_popup].h = 150
   args.outputs[:oven_popup].background_color = [0, 0, 0, 100]
-
-  args.outputs[:oven_popup].sprites << {
-    x: 25,
-    y: 75,
-    w: 50,
-    h: 50,
-    path: "sprites/Cupcake.png"
-  }
-  args.outputs[:oven_popup].sprites << {
-    x: 100,
-    y: 75,
-    w: 50,
-    h: 50,
-    path: "sprites/Donut.png"
-  }
-  args.outputs[:oven_popup].sprites << {
-    x: 175,
-    y: 75,
-    w: 50,
-    h: 50,
-    path: "sprites/Bread.png"
-  }
 
   args.state.cupcakebutton = {x: 25, y: 25, w:50, h: 25}
   args.state.donutbutton = {x: 100, y: 25, w:50, h: 25}
@@ -587,18 +583,28 @@ def render_oven_popup(args, offset_x, offset_y)
     {type: :cupcake, flour: 1, milk: 1, cherry: 1, x: 250}
   ]
   
-  recipes.each do |recipe|
-    recipe_x = offset_x + recipe[:x]
-    recipe_y = offset_y + 40
+  recipes.each_with_index do |recipe, i|
+    recipe_x = offset_x + recipe[:x] + 20
+    recipe_y = offset_y + 56
+
+  # Calculate a rotation wiggle angle based on time and item index
+  time = Kernel.tick_count / 60.0
+  bpm = 30
+  frames_per_beat = (60.0 / bpm) * 60
+  rotation_amplitude = 8 # degrees max rotation
+
+  rotation_angle = Math.sin((Kernel.tick_count + i * 20) / frames_per_beat * Math::PI * 2) * rotation_amplitude
     
-    # Item sprite
-    args.outputs.primitives << {
-      x: recipe_x, y: recipe_y + 40,
-      w: 40, h: 40,
-      path: "sprites/#{recipe[:type].capitalize}.png",
-      primitive_marker: :sprite
-    }
-    
+  # Draw the baked item sprite with rotation
+  args.outputs.primitives << {
+    x: recipe_x, y: recipe_y + 40,
+    w: 40, h: 40,
+    path: "sprites/#{recipe[:type].capitalize}.png",
+    primitive_marker: :sprite,
+    angle: rotation_angle,
+    anchor_x: 0.5,
+    anchor_y: 0.5,
+  }
     
     # Recipe requirements
     ingredients_text = []
@@ -610,7 +616,7 @@ def render_oven_popup(args, offset_x, offset_y)
     
     ingredients_text.each_with_index do |ingredient, idx|
       args.outputs.labels << {
-        x: recipe_x + 20, y: recipe_y + 25 - (idx * 18),
+        x: recipe_x + 5, y: recipe_y + 10 - (idx * 18),
         text: ingredient, size: 10, alignment_enum: 1,
         r: 255, g: 255, b: 255
       }
@@ -761,7 +767,7 @@ def checkOrderTimers(args)
         args.state.fireStarted = true
         add_shop_message(args, "A customer waited too long...")
         add_shop_message(args, "your store is on fire!")
-      else
+        else
         add_shop_message(args, "Another order was cancelled!")
       end
       args.state.orders.delete(order)
@@ -916,7 +922,5 @@ def render_messages(args)
         r: 255, g: 255, b: 255
       }
     end
-  end
-end
   end
 end
