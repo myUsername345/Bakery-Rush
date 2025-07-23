@@ -60,6 +60,8 @@ def tick(args)
   args.state.last_order_generation ||= 0
   args.state.delivery_guy_message ||= ""
   args.state.delivery_guy_message_timer ||= 0
+  args.state.delivery_guy_expression ||= "happy"  
+
 
   # Supply box costs
   args.state.supply_cost ||= 3
@@ -241,6 +243,7 @@ end
   if args.state.shop.onFire && mx && my
     if mx.between?(940, 1080) && my.between?(325, 465)
       args.state.shop.onFire = false
+      args.state.delivery_guy_expression = "happy"  # Reset to happy when fire is put out
       add_shop_message(args, "Fire extinguished! Store is safe.")
     end
   end
@@ -358,9 +361,25 @@ end
   employee_h = 500
   employee_x = screen_w / 2 - employee_w / 2
   employee_y = screen_h / 2 - 167
+  # Employee sprite w expressions
+  employee_w = 300
+  employee_h = 500
+  employee_x = screen_w / 2 - employee_w / 2
+  employee_y = screen_h / 2 - 167
+
+  # Choose sprite based on expression
+  sprite_path = case args.state.delivery_guy_expression
+                when "eating"
+                  "sprites/Employee_eating.png"
+                when "shocked"
+                  "sprites/Employee_shocked.png"
+                else
+                  "sprites/Employee_happy.png"
+                end
+                
   args.outputs.sprites << {
     x: employee_x, y: employee_y, w: employee_w, h: employee_h,
-    path: "sprites/Employee.png",
+    path: sprite_path,
     flip_horizontally: !args.state.employee_facing_right
   }
   if args.state.shop.onFire && args.state.fireStarted
@@ -428,6 +447,12 @@ end
     }
   
     args.state.delivery_guy_message_timer -= 1
+    if args.state.delivery_guy_message_timer <= 0
+      # Only reset to happy if store is not on fire
+      if !args.state.shop.onFire
+        args.state.delivery_guy_expression = "happy"
+      end
+    end
   end
 
   # Oven popup setup
@@ -515,6 +540,7 @@ end
 				check_delivery(args, :cupcake)
 			else
 				args.state.delivery_guy_message = "I don't have anything to deliver!"
+        args.state.delivery_guy_expression = "shocked" if args.state.shop.onFire
 				args.state.delivery_guy_message_timer = 120
 			end
 				
@@ -524,8 +550,6 @@ end
   # Render shop UI
   render_shop_ui(args)
 end
-
-
 
 def generate_new_order(args)
   items = [:bread, :donut, :cupcake]
@@ -736,6 +760,7 @@ def check_delivery(args, baked_type)
   elsif args.state.baked[baked_type] > 0
     # No matching order but we have the item
     args.state.delivery_guy_message = "Nobody ordered it so I'm going to eat it"
+    args.state.delivery_guy_expression = "eating"
     args.state.delivery_guy_message_timer = 120
     
     # Remove the baked item
@@ -809,6 +834,7 @@ def checkOrderTimers(args)
         args.state.fireStarted = true
         add_shop_message(args, "A customer waited too long...")
         add_shop_message(args, "your store is on fire!")
+        args.state.delivery_guy_expression = "shocked"
         else
         add_shop_message(args, "Another order was cancelled!")
       end
