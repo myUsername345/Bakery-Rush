@@ -24,6 +24,7 @@ def tick(args)
   # Init state
   args.state.starting_screen = true if args.state.starting_screen.nil?
   args.state.shop.onFire ||= false
+  args.state.fire_direction ||= 1
   args.state.flour_count ||= 0
   args.state.milk_count ||= 0
   args.state.cherry_count ||= 0
@@ -62,10 +63,8 @@ def tick(args)
   args.state.delivery_guy_message_timer ||= 0
   args.state.delivery_guy_expression ||= "happy"  
 
-
   # Supply box costs
   args.state.supply_cost ||= 3
-
 
   # Generate orders periodically (every 30 seconds of game time)
   if args.state.game_time < 19 * 60 && # Stop generating orders at 7pm
@@ -94,13 +93,13 @@ def tick(args)
     args.outputs.labels << {
       x: screen_w / 2, y: screen_h / 2 + 40,
       text: "You did not meet all customer orders!",
-      size: 36, alignment_enum: 1,
+      size_px: 36, font: 'fonts/LobsterTwo-Regular.ttf', alignment_enum: 1,
       r: 255, g: 255, b: 255
     }
     args.outputs.labels << {
       x: screen_w / 2, y: screen_h / 2 - 20,
       text: "Click here to play again",
-      size: 28, alignment_enum: 1,
+      size_px: 28, font: 'fonts/LobsterTwo-Regular.ttf', alignment_enum: 1,
       r: 255, g: 255, b: 255
     }
 
@@ -121,19 +120,19 @@ def tick(args)
     args.outputs.labels << {
       x: screen_w / 2, y: screen_h / 2 + 60,
       text: "Congrats! You met all customer orders!",
-      size: 36, alignment_enum: 1,
+      size_px: 36, font: 'fonts/LobsterTwo-Regular.ttf', alignment_enum: 1,
       r: 255, g: 255, b: 255
     }
     args.outputs.labels << {
       x: screen_w / 2, y: screen_h / 2 + 10,
       text: "Orders Completed: #{args.state.completed_orders.length}",
-      size: 32, alignment_enum: 1,
+      size_px: 32, font: 'fonts/LobsterTwo-Regular.ttf', alignment_enum: 1,
       r: 255, g: 255, b: 255
     }
     args.outputs.labels << {
       x: screen_w / 2, y: screen_h / 2 - 40,
       text: "Click here to play again",
-      size: 28, alignment_enum: 1,
+      size_px: 28, font: 'fonts/LobsterTwo-Regular.ttf', alignment_enum: 1,
       r: 255, g: 255, b: 255
     }
 
@@ -155,19 +154,19 @@ def tick(args)
     args.outputs.labels << {
       x: screen_w / 2, y: screen_h / 2 + 40,
       text: "The fire burned out of control!",
-      size: 36, alignment_enum: 1,
+      size_px: 36, font: 'fonts/LobsterTwo-Regular.ttf', alignment_enum: 1,
       r: 255, g: 100, b: 100
     }
     args.outputs.labels << {
       x: screen_w / 2, y: screen_h / 2 - 20,
       text: "Your bakery is destroyed!",
-      size: 28, alignment_enum: 1,
+      size_px: 28, font: 'fonts/LobsterTwo-Regular.ttf', alignment_enum: 1,
       r: 255, g: 255, b: 255
     }
     args.outputs.labels << {
       x: screen_w / 2, y: screen_h / 2 - 60,
       text: "Click here to play again",
-      size: 24, alignment_enum: 1,
+      size_px: 24, font: 'fonts/LobsterTwo-Regular.ttf', alignment_enum: 1,
       r: 255, g: 255, b: 255
     }
 
@@ -186,7 +185,7 @@ def tick(args)
     }
     args.outputs.labels << {
       x: screen_w / 2, y: screen_h / 2,
-      text: "Click here to play", size: 48, alignment_enum: 1,
+      text: "Click here to play", size_px: 48, font: 'fonts/LobsterTwo-Regular.ttf', alignment_enum: 1,
       r: 255, g: 255, b: 255
     }
     args.state.starting_screen = false if args.inputs.mouse.click
@@ -227,7 +226,17 @@ end
     if args.state.fireFrameCounter > 18
       args.state.fireFrameCounter = 0
       args.state.fireFrame ||= 0
-      args.state.fireFrame = (args.state.fireFrame + 1) % 2
+      args.state.fire_direction ||= 1
+      
+      # Move frame in current direction
+      args.state.fireFrame += args.state.fire_direction
+      
+      # Reverse direction at boundaries
+      if args.state.fireFrame >= 2
+        args.state.fire_direction = -1
+      elsif args.state.fireFrame <= 0
+        args.state.fire_direction = 1
+      end
     end
   end
 
@@ -508,7 +517,6 @@ end
        my.between?(670, 720)
       args.audio[:music].paused = !args.audio[:music].paused
     end
-
 
     # Tablet click opens orders GUI
     if mx.between?(tablet_x, tablet_x + tablet_w) &&
@@ -916,13 +924,25 @@ def render_fire(args)
   fireFrame = args.state.fireFrame || 0
 
   sprite_path = case firePhase
-                when 1
-                  fireFrame == 0 ? 'sprites/Fire1.png' : 'sprites/Fire2.png'
-                when 2
-                  fireFrame == 0 ? 'sprites/Fire1.1.png' : 'sprites/Fire1.2.png'
-                when 3
-                  fireFrame == 0 ? 'sprites/Fire2.1.png' : 'sprites/Fire2.2.png'
+              when 1
+                case fireFrame
+                when 0 then 'sprites/Fire1.png'
+                when 1 then 'sprites/Fire2.png'
+                when 2 then 'sprites/Fire3.png'  
                 end
+              when 2
+                case fireFrame
+                when 0 then 'sprites/Fire1.1.png'
+                when 1 then 'sprites/Fire1.2.png'
+                when 2 then 'sprites/Fire1.3.png'  
+                end
+              when 3
+                case fireFrame
+                when 0 then 'sprites/Fire2.1.png'
+                when 1 then 'sprites/Fire2.2.png'
+                when 2 then 'sprites/Fire2.3.png'  
+                end
+              end
   
   args.outputs.sprites << {
     x: 0,
@@ -956,7 +976,7 @@ def render_progress_bar(args)
   }
   args.outputs.labels << {
     x: 1085, y: 705,
-    text: "M🔇", size: 24,
+    text: "M", size: 24,
     r: 255, g: 255, b: 255
   }
   money_box_x = 1140
@@ -1018,4 +1038,5 @@ def render_messages(args)
       }
     end
   end
+end
 end
