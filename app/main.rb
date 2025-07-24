@@ -16,6 +16,9 @@ def tick(args)
   screen_w = 1280
   screen_h = 720
 
+  mx = args.inputs.mouse.x
+  my = args.inputs.mouse.y
+
   args.outputs.sprites << {
     x: 0, y: 0, w: screen_w, h: screen_h,
     path: "sprites/Bakery_Cafe_Setting.png"
@@ -195,11 +198,6 @@ def tick(args)
   # Update shop
   update_shop(args)
 
-  if args.inputs.mouse.click
-    mx = args.inputs.mouse.x
-    my = args.inputs.mouse.y
-  end
-
   if args.state.shop.onFire && !args.state.fireStarted
     args.state.fireStarted = true
     args.state.fireTimeElapsed = 0
@@ -245,14 +243,25 @@ end
     path: "sprites/FireExtinguisher.png" 
   }
 
+  extinguisher_hovered = mx && my && 
+                        mx.between?(940, 1080) &&
+                        my.between?(325, 465)
+
+  if extinguisher_hovered
+    args.outputs.sprites << {
+      x: 940, y: 325, w: 140, h: 140,
+      path: "sprites/FireExtinguisher_glow.png"
+    }
+  end
+
   if args.state.shop.onFire
      render_fire(args)
   end
 
-  if args.state.shop.onFire && mx && my
+  if args.state.shop.onFire && args.inputs.mouse.click && mx && my
     if mx.between?(940, 1080) && my.between?(325, 465)
       args.state.shop.onFire = false
-      args.state.delivery_guy_expression = "happy"  # Reset to happy when fire is put out
+      args.state.delivery_guy_expression = "happy"
       add_shop_message(args, "Fire extinguished! Store is safe.")
     end
   end
@@ -266,6 +275,18 @@ end
     x: oven_x, y: oven_y,
     w: oven_w, h: oven_h, path: "sprites/Oven.png"
   }
+
+  oven_hovered = mx && my && 
+                mx.between?(oven_x, oven_x + oven_w) &&
+                my.between?(oven_y, oven_y + oven_h)
+
+  if oven_hovered
+    args.outputs.sprites << {
+      x: oven_x - 18, y: oven_y - 30, 
+      w: oven_w + 34, h: oven_h + 61,
+      path: "sprites/Oven_glow.png"
+    }
+  end
 
     # Draw baked items
   for i in 0..((args.state.baked)[:cupcake] -1) do
@@ -306,6 +327,17 @@ end
     x: tablet_x, y: tablet_y, w: tablet_w, h: tablet_h,
     path: "sprites/Tablet.png"
   }
+
+  tablet_hovered = mx && my && 
+                  mx.between?(tablet_x, tablet_x + tablet_w) &&
+                  my.between?(tablet_y, tablet_y + tablet_h)
+
+  if tablet_hovered
+    args.outputs.sprites << {
+      x: tablet_x-5, y: tablet_y-8, w: tablet_w+10, h: tablet_h+16,
+      path: "sprites/Tablet_glow.png"
+    }
+  end
 
   # Show tablet GUI if open
   if args.state.tablet_gui_open
@@ -376,6 +408,26 @@ end
   employee_x = screen_w / 2 - employee_w / 2
   employee_y = screen_h / 2 - 167
 
+mx = args.inputs.mouse.x
+my = args.inputs.mouse.y
+employee_hovered = mx && my && 
+                   mx.between?(employee_x, employee_x + employee_w) &&
+                   my.between?(employee_y, employee_y + employee_h)
+
+if employee_hovered
+  glow_path = case args.state.delivery_guy_expression
+              when "eating" then "sprites/Employee_eating_glow.png"
+              when "shocked" then "sprites/Employee_shocked_glow.png"
+              else "sprites/Employee_happy_glow.png"
+              end
+  
+  args.outputs.sprites << {
+    x: employee_x, y: employee_y, w: employee_w, h: employee_h,
+    path: glow_path,
+    flip_horizontally: !args.state.employee_facing_right
+  }
+end
+
   # Choose sprite based on expression
   sprite_path = case args.state.delivery_guy_expression
                 when "eating"
@@ -401,6 +453,20 @@ end
     end
   end
 
+  if employee_hovered
+    args.outputs.primitives << {
+      x: employee_x + employee_w/2 - 60, y: employee_y - 50, w: 120, h: 40,
+      r: 140, g: 58, b: 44, a: 250,
+      path: 'sprites/Long_Panel_Brown.png',
+      primitive_marker: :sprite
+    }
+    args.outputs.labels << {
+      x: employee_x + employee_w/2, y: employee_y - 20,
+      text: "Deliver", size: 20, alignment_enum: 1,
+      r: 255, g: 255, b: 255
+    }
+  end
+
   # SupplyBox 
   supply_box_w, supply_box_h = 150, 200
   supply_box_x, supply_box_y = screen_w - supply_box_w - 0, -30
@@ -409,25 +475,23 @@ end
     path: "sprites/SupplyBox.png"
   }
 
+  supply_hovered = mx && my && 
+                  mx.between?(supply_box_x, supply_box_x + supply_box_w) &&
+                  my.between?(supply_box_y, supply_box_y + supply_box_h)
+
+  if supply_hovered
+    args.outputs.sprites << {
+      x: supply_box_x, y: supply_box_y, w: supply_box_w, h: supply_box_h,
+      path: "sprites/SupplyBox_glow.png"
+    }
+  end
+
   # Show supply box cost
   args.outputs.labels << {
     x: supply_box_x + supply_box_w / 2, y: supply_box_y + supply_box_h + 10,
     text: "Supply: $#{args.state.supply_cost}", size: 24, alignment_enum: 1,
     r: 255, g: 255, b: 0
   }
-	employee_text_w = 200
-	employee_text_h = 80
-	args.outputs.primitives << {
-		x: employee_x+employee_w/2-employee_text_w/2, y: employee_y+employee_text_h/2, w: employee_text_w, h: employee_text_h,
-		r: 140, g: 58, b: 44, a: 250,
-		path: 'sprites/Long_Panel_Brown.png',
-		primitive_marker: :sprite
-	}
-	args.outputs.labels << {
-		x: employee_x+employee_w/2, y: employee_y+employee_text_h/2+50,
-		text: "Deliver", size: 24, alignment_enum: 1,
-		r: 255, g: 255, b: 255
-	}
 
   # Show delivery guy message
   if args.state.delivery_guy_message_timer > 0
@@ -1038,5 +1102,4 @@ def render_messages(args)
       }
     end
   end
-end
 end
