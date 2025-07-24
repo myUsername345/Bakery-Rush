@@ -150,24 +150,38 @@ def tick(args)
 
   # Fire game over overlay (Fire burned too long)
   if args.state.fire_game_over_overlay
+    if !args.state.explosion_played
+      args.outputs.sounds << "sounds/explosion.wav"
+      args.state.explosion_played = true
+    end
+    args.state.shake_timer ||= 45  # Shake for 60 frames (1 second)
+    
+    shake_x = 0
+    shake_y = 0
+    if args.state.shake_timer > 0
+      intensity = 8  
+      shake_x = rand(intensity * 2 + 1) - intensity
+      shake_y = rand(intensity * 2 + 1) - intensity
+      args.state.shake_timer -= 1
+    end
     args.outputs.sprites << {
       x: 0, y: 0, w: screen_w, h: screen_h,
       path: :pixel, r: 50, g: 50, b: 50, a: 180
     }
     args.outputs.labels << {
-      x: screen_w / 2, y: screen_h / 2 + 40,
+      x: screen_w / 2 + shake_x, y: screen_h / 2 + 40 + shake_y,
       text: "The fire burned out of control!",
       size_px: 36, font: 'fonts/LobsterTwo-Regular.ttf', alignment_enum: 1,
       r: 255, g: 100, b: 100
     }
     args.outputs.labels << {
-      x: screen_w / 2, y: screen_h / 2 - 20,
+      x: screen_w / 2 + shake_x, y: screen_h / 2 - 20 + shake_y,
       text: "Your bakery is destroyed!",
       size_px: 28, font: 'fonts/LobsterTwo-Regular.ttf', alignment_enum: 1,
       r: 255, g: 255, b: 255
     }
     args.outputs.labels << {
-      x: screen_w / 2, y: screen_h / 2 - 60,
+      x: screen_w / 2 + shake_x, y: screen_h / 2 - 60 + shake_y,
       text: "Click here to play again",
       size_px: 24, font: 'fonts/LobsterTwo-Regular.ttf', alignment_enum: 1,
       r: 255, g: 255, b: 255
@@ -205,13 +219,12 @@ def tick(args)
     args.state.fireFrame = 0
   end
 
-  # Reset fire state when fire is extinguished
   if !args.state.shop.onFire && args.state.fireStarted
-  args.state.fireStarted = false
-  args.state.fireTimeElapsed = 0  # Reset the fire progress
-  args.state.fireFrameCounter = 0
-  args.state.fireFrame = 0
-end
+    args.state.fireStarted = false
+    args.state.fireTimeElapsed = 0  # Reset the fire progress
+    args.state.fireFrameCounter = 0
+    args.state.fireFrame = 0
+  end
 
   if args.state.fireStarted
     # Track how long the fire has been burning (in frames)
@@ -455,13 +468,13 @@ end
 
   if employee_hovered
     args.outputs.primitives << {
-      x: employee_x + employee_w/2 - 60, y: employee_y - 50, w: 120, h: 40,
+      x: mx - 60, y: my + 20, w: 120, h: 40,
       r: 140, g: 58, b: 44, a: 250,
       path: 'sprites/Long_Panel_Brown.png',
       primitive_marker: :sprite
     }
     args.outputs.labels << {
-      x: employee_x + employee_w/2, y: employee_y - 20,
+      x: mx, y: my+50,
       text: "Deliver", size: 20, alignment_enum: 1,
       r: 255, g: 255, b: 255
     }
@@ -982,29 +995,30 @@ def render_fire(args)
               end
 
   args.state.firePhase = firePhase
+  fireFrame = args.state.fireFrame || 0
   if fireTimeInGameTicks >= 60
     args.state.fire_game_over_overlay = true
   end
-  fireFrame = args.state.fireFrame || 0
 
   sprite_path = case firePhase
               when 1
                 case fireFrame
                 when 0 then 'sprites/Fire1.png'
                 when 1 then 'sprites/Fire2.png'
-                when 2 then 'sprites/Fire3.png'  
+                when 2 then 'sprites/Fire3.png'
+                else 'sprites/Fire1.png'  
                 end
               when 2
                 case fireFrame
                 when 0 then 'sprites/Fire1.1.png'
                 when 1 then 'sprites/Fire1.2.png'
-                when 2 then 'sprites/Fire1.3.png'  
+                when 2 then 'sprites/Fire1.3.png'
                 end
               when 3
                 case fireFrame
                 when 0 then 'sprites/Fire2.1.png'
                 when 1 then 'sprites/Fire2.2.png'
-                when 2 then 'sprites/Fire2.3.png'  
+                when 2 then 'sprites/Fire2.3.png' 
                 end
               end
   
