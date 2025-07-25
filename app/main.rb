@@ -25,8 +25,13 @@ def tick(args)
   }
 
   # Init state
+  args.state.music_muted ||= false
   args.state.starting_screen = true if args.state.starting_screen.nil?
   args.state.shop.onFire ||= false
+  args.state.firebomb_active ||= false
+  args.state.firebomb_x ||= 0
+  args.state.firebomb_y ||= 0
+  args.state.firebomb_thrown ||= false
   args.state.fire_direction ||= 1
   args.state.flour_count ||= 0
   args.state.milk_count ||= 0
@@ -50,6 +55,7 @@ def tick(args)
   args.state.ovenpopupenabled ||= false
 
   # Shop state
+  args.state.high_score ||= 0
   args.state.shop_money ||= 100
   args.state.shop_messages ||= []
   args.state.game_time ||= 10 * 60 # Starting at 10:00 AM
@@ -80,6 +86,7 @@ def tick(args)
 
   # Check win/loss conditions
   if args.state.game_time >= 20 * 60 # 8pm
+    update_high_score(args)
     if all_orders_completed(args)
       args.state.tablet_success_overlay = true
     else
@@ -130,6 +137,18 @@ def tick(args)
       x: screen_w / 2, y: screen_h / 2 + 10,
       text: "Orders Completed: #{args.state.completed_orders.length}",
       size_px: 32, font: 'fonts/LobsterTwo-Regular.ttf', alignment_enum: 1,
+      r: 255, g: 255, b: 255
+    }
+    args.outputs.labels << {
+      x: screen_w / 2, y: screen_h / 2 - 80,
+      text: "Final Profit: $#{args.state.shop_money.round(2)}",
+      size_px: 24, font: 'fonts/LobsterTwo-Regular.ttf', alignment_enum: 1,
+      r: 255, g: 255, b: 255
+    }
+    args.outputs.labels << {
+      x: screen_w / 2, y: screen_h / 2 - 110,
+      text: "High Score: $#{args.state.high_score.round(2)}",
+      size_px: 24, font: 'fonts/LobsterTwo-Regular.ttf', alignment_enum: 1,
       r: 255, g: 255, b: 255
     }
     args.outputs.labels << {
@@ -221,13 +240,12 @@ def tick(args)
 
   if !args.state.shop.onFire && args.state.fireStarted
     args.state.fireStarted = false
-    args.state.fireTimeElapsed = 0  # Reset the fire progress
+    args.state.fireTimeElapsed = 0  
     args.state.fireFrameCounter = 0
     args.state.fireFrame = 0
   end
 
   if args.state.fireStarted
-    # Track how long the fire has been burning (in frames)
     args.state.fireTimeElapsed ||= 0
     args.state.fireTimeElapsed += 1
 
@@ -239,10 +257,8 @@ def tick(args)
       args.state.fireFrame ||= 0
       args.state.fire_direction ||= 1
       
-      # Move frame in current direction
       args.state.fireFrame += args.state.fire_direction
       
-      # Reverse direction at boundaries
       if args.state.fireFrame >= 2
         args.state.fire_direction = -1
       elsif args.state.fireFrame <= 0
@@ -368,8 +384,8 @@ def tick(args)
   }
 
 # Ingredient display with rotation wiggle at 30 BPM
-frames_per_beat = (60.0 / 30.0) * 60  # 30 BPM = 2 seconds per beat = 120 frames per beat
-rotation_amplitude = 8                # Max rotation angle in degrees
+frames_per_beat = (60.0 / 30.0) * 60  
+rotation_amplitude = 8                
 
 ingredients = [
   { icon: "Flour.png",     count: args.state.flour_count,     w: 50, h: 50 },
@@ -410,11 +426,6 @@ ingredients.each_with_index do |item, i|
   }
 end
 
-  # Employee sprite
-  employee_w = 300
-  employee_h = 500
-  employee_x = screen_w / 2 - employee_w / 2
-  employee_y = screen_h / 2 - 167
   # Employee sprite w expressions
   employee_w = 300
   employee_h = 500
@@ -466,6 +477,36 @@ end
     end
   end
 
+if args.state.firebomb_active && args.state.firebomb_thrown
+  target_x = 375   
+  target_y = 180   
+  start_x = -100
+  start_y = 600
+  
+  args.state.firebomb_x += 6
+  
+  total_distance = target_x - start_x
+  progress = (args.state.firebomb_x - start_x) / total_distance
+  progress = [progress, 1.0].min  
+  
+  height_diff = target_y - start_y
+  arc_height = 200 
+  
+  args.state.firebomb_y = start_y + (height_diff * progress) + 
+                          (arc_height * Math.sin(progress * Math::PI))
+  
+  args.outputs.sprites << {
+    x: args.state.firebomb_x, y: args.state.firebomb_y,
+    w: 40, h: 40,
+    path: "sprites/firebomb.png"
+  }
+
+  if progress >= 1.0
+    args.state.firebomb_active = false
+    args.state.firebomb_thrown = false
+  end
+end
+
   if employee_hovered
     args.outputs.primitives << {
       x: mx - 60, y: my + 20, w: 120, h: 40,
@@ -477,6 +518,18 @@ end
       x: mx, y: my+50,
       text: "Deliver", size: 20, alignment_enum: 1,
       r: 255, g: 255, b: 255
+    }
+  end
+
+  # Mute button glow
+  mute_hovered = mx && my && 
+                mx.between?(1065, 1065 + 50) &&
+                my.between?(670, 670 + 50)
+
+  if mute_hovered
+    args.outputs.sprites << {
+      x: 1062, y: 667, w: 55, h: 55,
+      path: "sprites/panel_brown_glow.png"  
     }
   end
 
@@ -590,9 +643,10 @@ end
     end
 
     # Mute Button
-    if mx.between?(1130, 1130 + 50) &&
-       my.between?(670, 720)
-      args.audio[:music].paused = !args.audio[:music].paused
+    if mx.between?(1065, 1065 + 50) &&
+      my.between?(670, 670 + 50)
+      args.state.music_muted = !args.state.music_muted
+      $args.audio.volume = args.state.music_muted ? 0 : 1
     end
 
     # Tablet click opens orders GUI
@@ -641,6 +695,12 @@ end
 
   # Render shop UI
   render_shop_ui(args)
+end
+
+def update_high_score(args)
+  if args.state.shop_money > args.state.high_score
+    args.state.high_score = args.state.shop_money
+  end
 end
 
 def generate_new_order(args)
@@ -921,6 +981,13 @@ end
 def checkOrderTimers(args)
   args.state.orders.each do |order|
     waitTime = args.state.game_time - order[:time_placed]
+    if waitTime >= 54 && !args.state.firebomb_thrown && !args.state.shop.onFire
+      args.state.firebomb_active = true
+      args.state.firebomb_thrown = true
+      args.state.firebomb_x = -100
+      args.state.firebomb_y = 600
+    end
+
     if waitTime >= 60 
       if !args.state.shop.onFire
         args.state.shop.onFire = true
@@ -970,8 +1037,14 @@ def render_blocks(args)
 		path: 'sprites/panel_brown.png',
     primitive_marker: :sprite
   }
-
-
+  args.outputs.primitives << {
+    x: 1070, y: 665,    
+    w: 50, h: 50,
+    a: 130,             
+    r: 0, g: 0, b: 0,   
+    path: 'sprites/panel_brown.png',
+    primitive_marker: :sprite
+  }
   args.outputs.primitives << {
     x: 1065, y: 670,
     w: 50, h: 50,
@@ -979,7 +1052,6 @@ def render_blocks(args)
 		path: 'sprites/panel_brown.png',
     primitive_marker: :sprite
   }
-
 end
 
 def render_fire(args)
