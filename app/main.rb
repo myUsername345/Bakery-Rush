@@ -3,7 +3,7 @@ def tick(args)
   if Kernel.tick_count == 0
     args.audio[:music] = {
       input: 'sounds/bg-music-trimmed.mp3',
-      gain: 1.0,
+      gain: 1,
       looping: true
     }
 	end
@@ -231,6 +231,21 @@ def tick(args)
   # Update shop
   update_shop(args)
 
+# fire crackling sound
+if args.state.shop.onFire
+  # start fire sound if it's not playing
+  unless args.audio[:fire]
+    args.audio[:fire] = {
+      input: 'sounds/fire.mp3',
+      gain: 1,
+      looping: true
+    }
+  end
+else
+  # stop fire sound if fire is out
+  args.audio[:fire] = nil if args.audio[:fire]
+end
+
   if args.state.shop.onFire && !args.state.fireStarted
     args.state.fireStarted = true
     args.state.fireTimeElapsed = 0
@@ -289,6 +304,12 @@ def tick(args)
 
   if args.state.shop.onFire && args.inputs.mouse.click && mx && my
     if mx.between?(940, 1080) && my.between?(325, 465)
+      #extinguisher sound
+      args.audio[:extinguish] = {
+      input: 'sounds/fire_extinguish.mp3',
+      gain: 5.0,
+      looping: false
+      }
       args.state.shop.onFire = false
       args.state.delivery_guy_expression = "happy"
       add_shop_message(args, "Fire extinguished! Store is safe.")
@@ -639,6 +660,12 @@ end
     # Oven click toggles popup
     if mx.between?(oven_x, oven_x + oven_w) &&
        my.between?(oven_y, oven_y + oven_h)
+       # click sound
+        args.audio[:oven_click] = {
+        input: 'sounds/click_003.mp3',
+        gain: 5.0,
+        looping: false
+        }
       args.state.ovenpopupenabled = !args.state.ovenpopupenabled
     end
 
@@ -652,12 +679,24 @@ end
     # Tablet click opens orders GUI
     if mx.between?(tablet_x, tablet_x + tablet_w) &&
        my.between?(tablet_y, tablet_y + tablet_h)
+       #click sound
+        args.audio[:tablet_click] = {
+        input: 'sounds/click_003.mp3',
+        gain: 5.0,
+        looping: false
+        }
       args.state.tablet_gui_open = !args.state.tablet_gui_open
     end
 
     # SupplyBox click (costs money)
     if mx.between?(supply_box_x, supply_box_x + supply_box_w) &&
        my.between?(supply_box_y, supply_box_y + supply_box_h)
+       #clicking sound effect
+       args.audio[:test_click] = {
+        input: 'sounds/click_003.mp3',
+        gain: 5.0,
+        looping: false
+       }
       if args.state.shop_money >= args.state.supply_cost
         args.state.shop_money -= args.state.supply_cost
         case rand(4)
@@ -853,7 +892,7 @@ def handle_oven_popup_clicks(args, mx, my, offset_x, offset_y)
     # Check if click is on the item sprite (40x40 pixels)
     if mx.between?(sprite_x, sprite_x + 40) &&
        my.between?(sprite_y, sprite_y + 40)
-      
+
       if can_bake_recipe(args, recipe)
         consume_recipe_ingredients(args, recipe)
         
@@ -894,6 +933,13 @@ def check_delivery(args, baked_type)
   matching_order = args.state.orders.find { |order| order[:item] == baked_type }
   
   if matching_order && args.state.baked[baked_type] > 0
+    # register sound effect
+    args.audio[:register_noise]= {
+      input: 'sounds/money.mp3',
+      gain: 5.0,
+      looping: false
+    }
+
     # Complete the order
     args.state.orders.delete(matching_order)
     args.state.completed_orders << matching_order
@@ -914,6 +960,13 @@ def check_delivery(args, baked_type)
     # No matching order but we have the item
     args.state.delivery_guy_message = "Nobody ordered it so I'm going to eat it"
     args.state.delivery_guy_expression = "eating"
+
+    # eating sound effect
+    args.audio[:eating] = {
+      input: 'sounds/eating.mp3',
+      gain: 5.0,
+      looping: false
+    }
     args.state.delivery_guy_message_timer = 120
     
     # Remove the baked item
@@ -992,6 +1045,12 @@ def checkOrderTimers(args)
       if !args.state.shop.onFire
         args.state.shop.onFire = true
         args.state.fireStarted = true
+        # sound for bomb throw
+        args.audio[:oven_click] = {
+        input: 'sounds/drop_004.ogg',
+        gain: 5.0,
+        looping: false
+        }
         add_shop_message(args, "A customer waited too long...")
         add_shop_message(args, "your store is on fire!")
         args.state.delivery_guy_expression = "shocked"
